@@ -183,11 +183,12 @@ MCP_MODE=dev
 
 # Extra headers attached to every TeamCity request — useful when TeamCity
 # sits behind a reverse proxy that gates access on custom headers (e.g.
-# Cloudflare Zero Trust service tokens). One env var per header; the part
-# after `TEAMCITY_HEADER_` is used verbatim as the HTTP header name.
-# Example (note the literal hyphens — most shells need quoting):
-# TEAMCITY_HEADER_CF-Access-Client-Id=<id>
-# TEAMCITY_HEADER_CF-Access-Client-Secret=<secret>
+# Cloudflare Zero Trust service tokens). One env var per header; in the
+# suffix, `_` maps to `-` and `__` escapes a literal `_`. Suffixes that
+# already contain `-` (set via tools that bypass the shell) pass through.
+# TEAMCITY_HEADER_CF_ACCESS_CLIENT_ID=<id>          # → CF-ACCESS-CLIENT-ID
+# TEAMCITY_HEADER_CF_ACCESS_CLIENT_SECRET=<secret>  # → CF-ACCESS-CLIENT-SECRET
+# TEAMCITY_HEADER_X_API__KEY=<value>                # → X-API_KEY
 
 # Retry
 # TEAMCITY_RETRY_ENABLED=true

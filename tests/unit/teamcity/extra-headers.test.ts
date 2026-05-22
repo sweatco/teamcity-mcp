@@ -17,15 +17,33 @@ describe('getTeamCityExtraHeaders', () => {
     expect(getTeamCityExtraHeaders()).toBeUndefined();
   });
 
-  it('uses the env-var suffix verbatim as the header name', () => {
+  it('maps single underscores in the suffix to hyphens in the header name', () => {
+    process.env[`${HEADER_PREFIX}CF_ACCESS_CLIENT_ID`] = 'id-123';
+    process.env[`${HEADER_PREFIX}X_Custom_Header`] = 'value';
+
+    expect(getTeamCityExtraHeaders()).toEqual({
+      'CF-ACCESS-CLIENT-ID': 'id-123',
+      'X-Custom-Header': 'value',
+    });
+  });
+
+  it('treats double underscores as a literal underscore escape', () => {
+    process.env[`${HEADER_PREFIX}X_API__KEY`] = 'shh';
+    process.env[`${HEADER_PREFIX}__LEADING`] = 'lead';
+
+    expect(getTeamCityExtraHeaders()).toEqual({
+      'X-API_KEY': 'shh',
+      _LEADING: 'lead',
+    });
+  });
+
+  it('passes suffixes containing literal hyphens through verbatim', () => {
     process.env[`${HEADER_PREFIX}CF-Access-Client-Id`] = 'id-123';
     process.env[`${HEADER_PREFIX}CF-Access-Client-Secret`] = 'secret-456';
-    process.env[`${HEADER_PREFIX}X_Underscore_Header`] = 'literal-underscore';
 
     expect(getTeamCityExtraHeaders()).toEqual({
       'CF-Access-Client-Id': 'id-123',
       'CF-Access-Client-Secret': 'secret-456',
-      X_Underscore_Header: 'literal-underscore',
     });
   });
 

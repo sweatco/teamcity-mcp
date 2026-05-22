@@ -291,14 +291,42 @@ export function getTeamCityOptions(): {
 const HEADER_ENV_PREFIX = 'TEAMCITY_HEADER_';
 
 /**
+ * Translate a `TEAMCITY_HEADER_<SUFFIX>` env-var suffix into an HTTP header
+ * name, using a shell-friendly mapping:
+ *   `_`  → `-`  (so `X_CUSTOM_HEADER` becomes `X-Custom-Header`-ish)
+ *   `__` → `_`  (escape for the rare header that needs a literal underscore)
+ *
+ * If the suffix already contains a literal `-`, it was set via a mechanism
+ * that bypasses shell parsing (e.g. `claude mcp add -e KEY=VAL`); pass it
+ * through verbatim for backwards compatibility.
+ */
+function envSuffixToHeaderName(suffix: string): string {
+  if (suffix.includes('-')) return suffix;
+
+  let result = '';
+  let i = 0;
+  while (i < suffix.length) {
+    if (suffix[i] === '_' && suffix[i + 1] === '_') {
+      result += '_';
+      i += 2;
+    } else if (suffix[i] === '_') {
+      result += '-';
+      i += 1;
+    } else {
+      result += suffix[i];
+      i += 1;
+    }
+  }
+  return result;
+}
+
+/**
  * Collect extra HTTP headers from `TEAMCITY_HEADER_<NAME>` env vars.
  *
- * The `<NAME>` suffix is used verbatim as the HTTP header name — write
- * `TEAMCITY_HEADER_CF-Access-Client-Id` for a literal `CF-Access-Client-Id`
- * header. Most shells require quoting around the env var name when it
- * contains hyphens (e.g. `env "TEAMCITY_HEADER_CF-Access-Client-Id=…"`),
- * but Claude Code's `claude mcp add -e KEY=VAL` splits only on `=` and
- * passes the key through unchanged.
+ * `<NAME>` is mapped to the HTTP header name by replacing `_` with `-` and
+ * `__` with `_`, so `TEAMCITY_HEADER_CF_ACCESS_CLIENT_ID` yields the header
+ * `CF-Access-Client-Id`. Suffixes that already contain a literal `-` are
+ * passed through verbatim.
  *
  * Useful for reverse proxies that gate access on custom headers (e.g.
  * Cloudflare Zero Trust service tokens).
@@ -308,8 +336,9 @@ export function getTeamCityExtraHeaders(): Record<string, string> | undefined {
 
   for (const [key, value] of Object.entries(process.env)) {
     if (!key.startsWith(HEADER_ENV_PREFIX) || value === undefined) continue;
-    const headerName = key.slice(HEADER_ENV_PREFIX.length);
-    if (headerName === '') continue;
+    const suffix = key.slice(HEADER_ENV_PREFIX.length);
+    if (suffix === '') continue;
+    const headerName = envSuffixToHeaderName(suffix);
     headers[headerName] = value;
   }
 
